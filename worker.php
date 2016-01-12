@@ -28,13 +28,13 @@ class bitrix24worker
      */
     public function auth($login, $password)
     {
-        $post = [
+        $post = array(
             'AUTH_FORM' => 'Y',
             'TYPE' => 'AUTH',
             'USER_REMEMBER' => 'Y',
             'USER_LOGIN' => $login,
             'USER_PASSWORD' => $password
-        ];
+        );
 
         curl_setopt($this->c, CURLOPT_POSTFIELDS, http_build_query($post));
         $html = curl_exec($this->c);
