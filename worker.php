@@ -9,10 +9,11 @@ class bitrix24worker
     private $host;
     private $sessid;
     private $siteId;
-    
-    public function __construct()
+
+    public function __construct($domain)
     {
-        $this->host = 'https://datravel.bitrix24.ru/';
+        $this->checkWorkDay();
+        $this->host = 'https://' . $domain . '/';
         $this->c = curl_init();
         curl_setopt($this->c, CURLOPT_URL, $this->host);
         curl_setopt($this->c, CURLOPT_RETURNTRANSFER, 1);
@@ -20,6 +21,27 @@ class bitrix24worker
         curl_setopt($this->c, CURLOPT_COOKIEJAR, '/tmp/bitrix24worker.cookies');
         curl_setopt($this->c, CURLOPT_POST, 1);
         curl_setopt($this->c, CURLOPT_USERAGENT, 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/47.0.2526.80 Safari/537.36');
+    }
+
+    public function checkWorkDay()
+    {
+        $today = date('Ymd');
+        $todayNumber = date('N');
+        if ($holidays = trim(@file_get_contents(__DIR__ . '/holidays'))) {
+            $holidaysList = array_flip(explode("\n", $holidays));
+            if (array_key_exists($today, $holidaysList)) {
+                exit;
+            }
+        }
+        if ($workdays = trim(@file_get_contents(__DIR__ . '/workdays'))) {
+            $workdaysList = array_flip(explode("\n", $workdays));
+            if (array_key_exists($today, $workdaysList)) {
+                return;
+            }
+        }
+        if ($todayNumber === 6 || $todayNumber === 7) {
+            exit;
+        }
     }
 
     /**
@@ -48,21 +70,22 @@ class bitrix24worker
 
     public function start()
     {
-        curl_setopt($this->c, CURLOPT_URL, $this->host.'bitrix/tools/timeman.php?action=open&site_id='.$this->siteId.'&sessid='.$this->sessid);
+        curl_setopt($this->c, CURLOPT_URL, $this->host . 'bitrix/tools/timeman.php?action=open&site_id=' . $this->siteId . '&sessid=' . $this->sessid);
         curl_setopt($this->c, CURLOPT_POSTFIELDS, 'timestamp=0&report=');
         curl_exec($this->c);
     }
 
     public function stop()
     {
-        curl_setopt($this->c, CURLOPT_URL, $this->host.'bitrix/tools/timeman.php?action=close&site_id='.$this->siteId.'&sessid='.$this->sessid);
+        curl_setopt($this->c, CURLOPT_URL, $this->host . 'bitrix/tools/timeman.php?action=close&site_id=' . $this->siteId . '&sessid=' . $this->sessid);
         curl_setopt($this->c, CURLOPT_POSTFIELDS, 'timestamp=0&report=');
         curl_exec($this->c);
     }
 
     public function restart()
     {
-        curl_setopt($this->c, CURLOPT_URL, $this->host.'bitrix/tools/timeman.php?action=reopen&site_id='.$this->siteId.'&sessid='.$this->sessid);
+        $this->stop();
+        curl_setopt($this->c, CURLOPT_URL, $this->host . 'bitrix/tools/timeman.php?action=reopen&site_id=' . $this->siteId . '&sessid=' . $this->sessid);
         curl_setopt($this->c, CURLOPT_POSTFIELDS, 'timestamp=0&report=');
         curl_exec($this->c);
     }
@@ -73,17 +96,18 @@ class bitrix24worker
     }
 }
 
-if (empty($argv[1]) || empty($argv[2]) || empty($argv[3])){
-    echo 'Specify method, example: php bitrix24.php start user@mail.com passWord'.PHP_EOL;
+if (empty($argv[1]) || empty($argv[2]) || empty($argv[3]) || empty($argv[4])) {
+    echo 'Specify method, example: php worker.php domain.bitrix24.ru start user@mail.com passWord' . PHP_EOL;
     exit;
 }
-$method = $argv[1];
-$login = $argv[2];
-$password = $argv[3];
+$domain = $argv[1];
+$method = $argv[2];
+$login = $argv[3];
+$password = $argv[4];
 
-$b24w = new bitrix24worker();
-if(!method_exists($b24w, $method)){
-    echo 'Wrong method name, available methods: start, stop, restart'.PHP_EOL;
+$b24w = new bitrix24worker($domain);
+if (!method_exists($b24w, $method)) {
+    echo 'Wrong method name, available methods: start, stop, restart' . PHP_EOL;
     exit;
 }
 
