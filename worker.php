@@ -104,7 +104,7 @@ $domain = $argv[1];
 $method = $argv[2];
 $login = $argv[3];
 $password = $argv[4];
-exit;
+
 $b24w = new bitrix24worker($domain);
 if (!method_exists($b24w, $method)) {
     echo 'Wrong method name, available methods: start, stop, restart' . PHP_EOL;
